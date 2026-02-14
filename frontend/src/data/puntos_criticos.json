@@ -1,0 +1,32 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Canal Salitre - Punto crítico 1",
+        "sev": "alta",
+        "desc": "Encharcamiento recurrente en lluvias intensas"
+      },
+      "geometry": { "type": "Point", "coordinates": [-74.106, 4.678] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "Calle 80 x Av. Boyacá",
+        "sev": "media",
+        "desc": "Anegamiento por insuficiencia de drenaje"
+      },
+      "geometry": { "type": "Point", "coordinates": [-74.090, 4.692] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "nombre": "UPZ Minuto de Dios",
+        "sev": "baja",
+        "desc": "Reportes ciudadanos frecuentes"
+      },
+      "geometry": { "type": "Point", "coordinates": [-74.099, 4.702] }
+    }
+  ]
+}
