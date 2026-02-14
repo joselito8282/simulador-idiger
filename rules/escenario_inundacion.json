@@ -1,0 +1,8 @@
+{
+  "umbrales": { "amarillo": 20, "naranja": 35, "rojo": 50 },
+  "recomendaciones": {
+    "pmu": "Si reportes > 5 en 10 min y alerta >= Amarillo, convocar PMU.",
+    "edre": "Si alerta >= Naranja sosteniendo 10 min, activar EDRE nivel 1."
+    },
+  "kpi": ["tiempo_act", "personas_expuestas", "oportunidad_comunicacion"]
+}
