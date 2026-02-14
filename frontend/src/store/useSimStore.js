@@ -1,16 +1,17 @@
-
 import { create } from 'zustand'
 
 const initial = {
   time: 0,
-  lluviaMMh: 12,
+  lluviaMMh: 28,           // subimos la lluvia inicial para que se note la acción
   acumuladoMM: 8,
   reportes: 0,
   alertaSAB: 'Verde',
   personasExpuestas: 1200,
   edreNivel: 0,
   pmuActivo: false,
-  mensajes: [],
+  mensajes: [
+    { id: 'init', t: new Date().toLocaleTimeString(), txt: 'Simulación iniciada. Monitoreando precipitación y reportes…', tipo: 'info' }
+  ],
   incidentes: []
 }
 
@@ -21,33 +22,37 @@ export const useSimStore = create((set,get)=>({
   ...initial,
   tick(){
     const s = get()
+    // Variación simple aleatoria de lluvia
     const delta = Math.random() < 0.6 ? +1 : -1
     const lluviaMMh = Math.max(0, s.lluviaMMh + delta * Math.ceil(Math.random()*3))
     const acumuladoMM = s.acumuladoMM + Math.max(0, delta>0 ? Math.random()*2 : 0)
 
+    // Umbrales SAB
     let alertaSAB = 'Verde'
     if (lluviaMMh >= 50) alertaSAB = 'Rojo'
     else if (lluviaMMh >= 35) alertaSAB = 'Naranja'
     else if (lluviaMMh >= 20) alertaSAB = 'Amarillo'
 
+    // Reportes y exposición responden a lluvia y a decisiones (EDRE/PMU)
     let reportes = Math.max(0, s.reportes + Math.round(lluviaMMh/10) - (s.pmuActivo?2:0))
     const personasExpuestas = Math.max(0,
       Math.round( s.personasExpuestas + (lluviaMMh-10)*5 - (s.edreNivel*80) - (s.pmuActivo?120:0) )
     )
 
+    // Mensajes IA más sensibles (umbral 2 mm/h en vez de 5)
     let mensajes = s.mensajes
     if (alertaSAB !== s.alertaSAB) {
       mensajes = pushMsg(mensajes, `Alerta SAB cambia a ${alertaSAB}.`, 'alerta')
     }
-    if (lluviaMMh - s.lluviaMMh >= 5) {
+    if (lluviaMMh - s.lluviaMMh >= 2) {
       mensajes = pushMsg(mensajes, `Precipitación sube a ${lluviaMMh} mm/h.`, 'met')
     }
     if (reportes - s.reportes >= 3) {
-      mensajes = pushMsg(mensajes, `+${reportes-s.reportes} reportes en 30s. Evaluar PMU.`, 'riesgo')
+      mensajes = pushMsg(mensajes, `+${reportes-s.reportes} reportes en los últimos segundos. Evaluar PMU.`, 'riesgo')
     }
 
     set({
-      time: s.time + 10,
+      time: s.time + 3, // porque ahora el tick es cada 3 s
       lluviaMMh, acumuladoMM, alertaSAB, reportes, personasExpuestas, mensajes
     })
   },

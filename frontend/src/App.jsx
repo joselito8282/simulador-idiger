@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react'
 import { useSimStore } from './store/useSimStore'
 import Mapa from './components/Mapa'
@@ -10,7 +9,8 @@ export default function App(){
   const { tick, lluviaMMh, acumuladoMM, reportes, personasExpuestas, alertaSAB } = useSimStore()
 
   useEffect(()=>{
-    const id = setInterval(()=> tick(), 10000) // cada 10 s
+    // Ritmo de simulación más rápido para ver cambios (cada 3 s)
+    const id = setInterval(()=> tick(), 3000)
     return ()=> clearInterval(id)
   }, [tick])
 
