@@ -9,9 +9,11 @@
     "preview": "vite preview --port 4173"
   },
   "dependencies": {
+    "jspdf": "^4.1.0",
+    "jspdf-autotable": "^5.0.7",
+    "maplibre-gl": "^3.6.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "maplibre-gl": "^3.6.2",
     "zustand": "^4.5.2"
   },
   "devDependencies": {
