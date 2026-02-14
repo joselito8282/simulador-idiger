@@ -74,22 +74,30 @@ export default function Mapa() {
       })
 
       // Popup al hacer clic
-      map.on('click', 'criticos-circles', (e) => {
-        const f = e.features?.[0]
-        if (!f) return
-        const { nombre, sev, desc } = f.properties
-        const [lng, lat] = f.geometry.coordinates
-        new maplibregl.Popup()
-          .setLngLat([lng, lat])
-          .setHTML(
-            `<div style="min-width:220px">
-              <div style="font-weight:600;margin-bottom:4px">${nombre}</div>
-              <div><b>Severidad:</b> ${sev}</div>
-              <div style="margin-top:4px">${desc}</div>
-            </div>`
-          )
-          .addTo(map)
-      })
+     
+map.on('click', 'criticos-circles', (e) => {
+  const f = e.features?.[0]
+  if (!f) return
+  const { nombre, sev, desc } = f.properties
+  const [lng, lat] = f.geometry.coordinates
+
+  const html = `
+    <div class="popup-dark-body">
+      <div class="title">${nombre}</div>
+      <div><b>Severidad:</b> ${sev}</div>
+      <div style="margin-top:4px">${desc}</div>
+    </div>
+  `
+
+  new maplibregl.Popup({
+    className: 'popup-dark',      // 👈 clase para nuestros estilos
+    closeButton: true,
+    maxWidth: '280px'
+  })
+    .setLngLat([lng, lat])
+    .setHTML(html)
+    .addTo(map)
+})
 
       // Cambiar cursor al pasar sobre puntos
       map.on('mouseenter', 'criticos-circles', () => map.getCanvas().style.cursor = 'pointer')
