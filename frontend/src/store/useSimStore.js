@@ -1,7 +1,7 @@
 
 import { create } from 'zustand'
 import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'   // ⬅️ Import ESM correcto
+// 👇 OJO: quitamos el import estático de autotable; lo cargaremos dinámico más abajo
 
 const fmt = (n) => new Intl.NumberFormat('es-CO').format(n)
 
@@ -192,7 +192,10 @@ export const useSimStore = create((set, get)=>({
       marginX, y
     ); y += lineY
 
-    // === KPIs (AutoTable en ESM) ===
+    // === Carga DINÁMICA de jsPDF-AutoTable (evita conflictos del bundler) ===
+    const { default: autoTable } = await import('jspdf-autotable')
+
+    // KPIs
     autoTable(doc, {
       startY: y,
       head:[['Métrica','Inicial','Final']],
@@ -231,7 +234,7 @@ export const useSimStore = create((set, get)=>({
       .replace(/[^a-zA-Z0-9-_]/g,'_')}_${new Date().toISOString()
       .slice(0,16).replace(/[:T]/g,'-')}.pdf`
 
-    // Descarga directa
+    // Descarga directa (preferida)
     try { doc.save(file); return } catch {}
 
     // Fallback #1: <a download> oculto
@@ -258,6 +261,7 @@ export const useSimStore = create((set, get)=>({
     alert('Error generando PDF. Revisa la consola (F12→Console) y compárteme el mensaje.')
   }
 },
+
 
   limpiar(){ set(initial) }
 }))
