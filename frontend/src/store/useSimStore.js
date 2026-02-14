@@ -1,7 +1,7 @@
 
 import { create } from 'zustand'
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'   // ⬅️ Import ESM correcto
 
 const fmt = (n) => new Intl.NumberFormat('es-CO').format(n)
 
