@@ -156,41 +156,53 @@ export const useSimStore = create((set, get)=>({
   cerrarAAR(){ set({ aarOpen: false }) },
 
   descargarPdfAAR: async () => {
-    const s = get()
-    const snap = s.aarSnapshot
-    if (!snap) return
+  const s = get()
+  const snap = s.aarSnapshot
+  if (!snap) return
 
+  try {
     const doc = new jsPDF({ unit:'pt', format:'A4' })
     const marginX = 48, lineY = 30
     let y = 64
 
+    // Logo opcional: si no existe, NO falla el build
     try {
-      const logo = await import('../assets/logo-idiger.png')
-      doc.addImage(logo.default, 'PNG', marginX, y-24, 80, 32)
+      const mod = await import(/* @vite-ignore */ '../assets/logo-idiger.png').catch(()=>null)
+      if (mod?.default) doc.addImage(mod.default, 'PNG', marginX, y-24, 80, 32)
     } catch {}
 
+    // Título
     doc.setFont('helvetica','bold'); doc.setFontSize(16)
     doc.text('Informe de Ejercicio — Simulador IDIGER', marginX+90, y); y += lineY
 
-    doc.setFont('helvetica',''); doc.setFontSize(11)
+    // Cabecera
+    doc.setFont('helvetica','normal'); doc.setFontSize(11)
     doc.text(`Fecha: ${snap.fecha}`, marginX, y); y += lineY
     doc.text(`Duración (min): ${snap.minutos}`, marginX, y); y += lineY
     doc.text(`Participante: ${snap.nombre || 'Sin nombre'}`, marginX, y); y += lineY*0.6
 
+    // Puntaje
     const a = get().aarScore
-    doc.setFont('helvetica','bold'); doc.text(`Puntaje: ${a.total}/100`, marginX, y); y += lineY
-    doc.setFont('helvetica',''); 
-    doc.text(`Oportunidad: ${a.detalle.oportunidad}  |  Cobertura: ${a.detalle.cobertura}  |  Impacto: ${a.detalle.impacto}  |  Coherencia: ${a.detalle.coherencia}`, marginX, y); y += lineY
+    doc.setFont('helvetica','bold')
+    doc.text(`Puntaje: ${a.total}/100`, marginX, y); y += lineY
+    doc.setFont('helvetica','normal')
+    doc.text(
+      `Oportunidad: ${a.detalle.oportunidad}  |  Cobertura: ${a.detalle.cobertura}  |  ` +
+      `Impacto: ${a.detalle.impacto}  |  Coherencia: ${a.detalle.coherencia}`,
+      marginX, y
+    ); y += lineY
 
-    doc.setFont('helvetica','bold'); doc.text('KPIs', marginX, y); y += 12
-    doc.autoTable({
+    // === KPIs (AutoTable en ESM) ===
+    autoTable(doc, {
       startY: y,
-      head:[["Métrica","Inicial","Final"]],
+      head:[['Métrica','Inicial','Final']],
       body:[
         ['Precipitación (mm/h)', String(snap.inicio.lluviaMMh), String(snap.fin.lluviaMMh)],
         ['Acumulado (mm)', snap.inicio.acumuladoMM.toFixed(1), snap.fin.acumuladoMM.toFixed(1)],
         ['Reportes', String(snap.inicio.reportes), String(snap.fin.reportes)],
-        ['Personas expuestas', fmt(snap.inicio.personasExpuestas), fmt(snap.fin.personasExpuestos)],
+        ['Personas expuestas',
+          new Intl.NumberFormat('es-CO').format(snap.inicio.personasExpuestas),
+          new Intl.NumberFormat('es-CO').format(snap.fin.personasExpuestos)],
         ['Alerta SAB', snap.inicio.alertaSAB, snap.fin.alertaSAB],
       ],
       styles:{ font:'helvetica', fontSize:10 },
@@ -199,23 +211,53 @@ export const useSimStore = create((set, get)=>({
     })
     y = doc.lastAutoTable.finalY + 24
 
+    // Cronología
     doc.setFont('helvetica','bold'); doc.text('Línea de tiempo de decisiones', marginX, y); y += 8
     const body = snap.decisiones.map(d => [
       d.t, d.tipo, d.detalle,
-      `${d.kpi.lluviaMMh} mm/h`, String(d.kpi.reportes), fmt(d.kpi.personasExpuestas), d.kpi.alertaSAB
+      `${d.kpi.lluviaMMh} mm/h`, String(d.kpi.reportes),
+      new Intl.NumberFormat('es-CO').format(d.kpi.personasExpuestas), d.kpi.alertaSAB
     ])
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
-      head:[["Hora","Tipo","Detalle","Lluvia","Reportes","Expuestos","Alerta"]],
+      head:[['Hora','Tipo','Detalle','Lluvia','Reportes','Expuestos','Alerta']],
       body,
       styles:{ font:'helvetica', fontSize:9, cellPadding: 3 },
       headStyles:{ fillColor:[70,70,70] },
       margin:{ left: marginX, right: marginX }
     })
 
-    const file = `AAR_${(snap.nombre||'participante').replace(/[^a-zA-Z0-9-_]/g,'_')}_${new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')}.pdf`
-    doc.save(file)
-  },
+    const file = `AAR_${(snap.nombre||'participante')
+      .replace(/[^a-zA-Z0-9-_]/g,'_')}_${new Date().toISOString()
+      .slice(0,16).replace(/[:T]/g,'-')}.pdf`
+
+    // Descarga directa
+    try { doc.save(file); return } catch {}
+
+    // Fallback #1: <a download> oculto
+    try {
+      const blob = doc.output('blob')
+      const url = URL.createObjectURL(blob)
+      const aEl = document.createElement('a')
+      aEl.href = url; aEl.download = file
+      document.body.appendChild(aEl); aEl.click(); aEl.remove()
+      URL.revokeObjectURL(url)
+      return
+    } catch {}
+
+    // Fallback #2: abrir en nueva pestaña (permitir pop‑ups si lo pide)
+    try {
+      const blobUrl = doc.output('bloburl')
+      window.open(blobUrl, '_blank')
+      return
+    } catch {}
+
+    alert('No se pudo generar el PDF. Abre F12→Console y compárteme el primer error.')
+  } catch (e) {
+    console.error('Error generando PDF:', e)
+    alert('Error generando PDF. Revisa la consola (F12→Console) y compárteme el mensaje.')
+  }
+},
 
   limpiar(){ set(initial) }
 }))
