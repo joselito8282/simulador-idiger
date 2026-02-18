@@ -2,15 +2,17 @@ import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import puntos from '../data/puntos_criticos.json'
+import { useSimStore } from '../store/useSimStore'
 
 export default function Mapa() {
   const ref = useRef(null)
   const mapRef = useRef(null)
+  const incidentes = useSimStore(s => s.incidentes)
 
+  // 1) Inicializar el mapa una sola vez
   useEffect(() => {
     if (mapRef.current) return
 
-    // Estilo raster OSM (sin llaves)
     const style = {
       version: 8,
       sources: {
@@ -33,10 +35,9 @@ export default function Mapa() {
     mapRef.current = map
 
     map.on('load', () => {
-      // Fuente GeoJSON con puntos críticos (demo)
+      // Puntos críticos (demo)
       map.addSource('criticos', { type: 'geojson', data: puntos })
 
-      // Circles por severidad
       map.addLayer({
         id: 'criticos-circles',
         type: 'circle',
@@ -45,17 +46,16 @@ export default function Mapa() {
           'circle-radius': 7,
           'circle-color': [
             'match', ['get', 'sev'],
-            'alta', '#ef4444',     // rojo
-            'media', '#f59e0b',    // naranja
-            'baja', '#22c55e',     // verde
-            '#3b82f6'              // default (azul)
+            'alta', '#ef4444',      // rojo
+            'media', '#f59e0b',     // naranja
+            'baja', '#22c55e',      // verde
+            '#3b82f6'               // default (azul)
           ],
           'circle-stroke-color': '#0f172a',
           'circle-stroke-width': 1.5
         }
       })
 
-      // Etiquetas (nombre)
       map.addLayer({
         id: 'criticos-labels',
         type: 'symbol',
@@ -73,39 +73,85 @@ export default function Mapa() {
         }
       })
 
-      // Popup al hacer clic
-     
-map.on('click', 'criticos-circles', (e) => {
-  const f = e.features?.[0]
-  if (!f) return
-  const { nombre, sev, desc } = f.properties
-  const [lng, lat] = f.geometry.coordinates
+      map.on('click', 'criticos-circles', (e) => {
+        const f = e.features?.[0]
+        if (!f) return
+        const { nombre, sev, desc } = f.properties
+        const [lng, lat] = f.geometry.coordinates
+        new maplibregl.Popup({ className: 'popup-dark', maxWidth: '280px' })
+          .setLngLat([lng, lat])
+          .setHTML(`
+            <div class="popup-dark-body">
+              <div class="title">${nombre}</div>
+              <div><b>Severidad:</b> ${sev}</div>
+              <div style="margin-top:4px">${desc}</div>
+            </div>
+          `)
+          .addTo(map)
+      })
 
-  const html = `
-    <div class="popup-dark-body">
-      <div class="title">${nombre}</div>
-      <div><b>Severidad:</b> ${sev}</div>
-      <div style="margin-top:4px">${desc}</div>
-    </div>
-  `
+      // Incidentes (dinámico)
+      map.addSource('incidentes', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] }
+      })
 
-  new maplibregl.Popup({
-    className: 'popup-dark',      // 👈 clase para nuestros estilos
-    closeButton: true,
-    maxWidth: '280px'
-  })
-    .setLngLat([lng, lat])
-    .setHTML(html)
-    .addTo(map)
-})
+      map.addLayer({
+        id: 'incidentes-circles',
+        type: 'circle',
+        source: 'incidentes',
+        paint: {
+          'circle-radius': 8,
+          'circle-color': [
+            'match', ['get', 'tipo'],
+            'semaforos', '#f59e0b',   // naranja
+            'inundacion', '#ef4444',  // rojo
+            '#3b82f6'
+          ],
+          'circle-stroke-color':'#0f172a',
+          'circle-stroke-width':1.5
+        }
+      })
 
-      // Cambiar cursor al pasar sobre puntos
-      map.on('mouseenter', 'criticos-circles', () => map.getCanvas().style.cursor = 'pointer')
-      map.on('mouseleave', 'criticos-circles', () => map.getCanvas().style.cursor = '')
+      map.on('click','incidentes-circles',(e)=>{
+        const f = e.features?.[0]; if(!f) return;
+        const { titulo, detalle, tipo, severidad } = f.properties
+        const [lng, lat] = f.geometry.coordinates
+        new maplibregl.Popup({ className:'popup-dark', maxWidth:'280px' })
+          .setLngLat([lng,lat])
+          .setHTML(`
+            <div class="popup-dark-body">
+              <div class="title">${titulo}</div>
+              <div><b>Tipo:</b> ${tipo} · <b>Sev:</b> ${severidad}</div>
+              <div style="margin-top:4px">${detalle}</div>
+            </div>
+          `)
+          .addTo(map)
+      })
     })
 
-    return () => map?.remove()
+    return () => map.remove()
   }, [])
+
+  // 2) Sincronizar la fuente 'incidentes' cuando cambie el store
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const src = map.getSource('incidentes')
+    if (!src) return
+
+    const fc = {
+      type: 'FeatureCollection',
+      features: incidentes.map(i => ({
+        type: 'Feature',
+        properties: {
+          tipo: i.tipo, titulo: i.titulo, detalle: i.detalle, severidad: i.severidad
+        },
+        geometry: { type: 'Point', coordinates: i.coord }
+      }))
+    }
+    src.setData(fc)
+  }, [incidentes])
 
   return (
     <div className="relative">
@@ -115,9 +161,12 @@ map.on('click', 'criticos-circles', (e) => {
       {/* Leyenda simple */}
       <div className="absolute bottom-2 left-2 bg-slate-800/85 text-slate-100 text-xs px-2 py-1.5 rounded border border-slate-700">
         <div className="flex items-center gap-2">
-          <span className="inline-block w-3 h-3 rounded-full" style={{background:'#ef4444'}}></span> Alta
-          <span className="inline-block w-3 h-3 rounded-full" style={{background:'#f59e0b', marginLeft:8}}></span> Media
-          <span className="inline-block w-3 h-3 rounded-full" style={{background:'#22c55e', marginLeft:8}}></span> Baja
+          <span className="inline-block w-3 h-3 rounded-full" style={{background:'#ef4444'}} />
+          Alta
+          <span className="inline-block w-3 h-3 rounded-full" style={{background:'#f59e0b', marginLeft:8}} />
+          Media
+          <span className="inline-block w-3 h-3 rounded-full" style={{background:'#22c55e', marginLeft:8}} />
+          Baja
         </div>
       </div>
     </div>
