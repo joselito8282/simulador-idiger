@@ -10,13 +10,13 @@ const initial = {
   nombre: '',
   time: 0,
   lluviaMMh: 28,
-  incidentes: [],   // puntos dinámicos que pintaremos en el mapa
-  acumuladoMM: 8,
+    acumuladoMM: 8,
   reportes: 0,
   alertaSAB: 'Verde',
   personasExpuestas: 1200,
   edreNivel: 0,
   pmuActivo: false,
+  incidentes: [],   // puntos dinámicos que pintaremos en el mapa
   mensajes: [
     { id: 'init', t: new Date().toLocaleTimeString(), txt: 'Simulación iniciada. Monitoreando precipitación y reportes…', tipo: 'info' }
   ],
@@ -103,7 +103,77 @@ export const useSimStore = create((set, get)=>({
     })
     get().registrarDecision('Alerta SAB', `Nivel ${nivel}`)
   },
+iniciarEscenarioLluviaSemaforosInundacion(){
+  const s = get();
 
+  // 1) Arranque: subir lluvia y alertar
+  let mensajes = s.mensajes;
+  mensajes = [...mensajes,
+    { id: (crypto.randomUUID?.()||String(Date.now())),
+      t: new Date().toLocaleTimeString(),
+      txt: 'SAB: incremento de precipitación en la zona. Posible afectación vial.',
+      tipo: 'met' }
+  ];
+  const lluviaMMh = Math.max(s.lluviaMMh, 32);
+  const alertaSAB = lluviaMMh >= 35 ? 'Naranja' : 'Amarillo';
+
+  // 2) Incidente: semáforos dañados (impacto en KPIs)
+  const incidenteSemaforos = {
+    id: 'sem-' + Date.now(),
+    tipo: 'semaforos',
+    titulo: 'Falla de semáforos (Av. 80 x Boyacá)',
+    coord: [-74.09, 4.692],
+    severidad: 'media',
+    detalle: 'Intermitencia/daño en semáforos. Congestión y riesgo vial.'
+  };
+  mensajes = [...mensajes,
+    { id: (crypto.randomUUID?.()||String(Date.now())),
+      t: new Date().toLocaleTimeString(),
+      txt: 'Reporte: falla de semáforos en intersección crítica. Coordinar con Movilidad.',
+      tipo: 'riesgo' }
+  ];
+
+  let reportes = s.reportes + 8;
+  let personasExpuestas = s.personasExpuestas + 120;
+
+  // Guardar primer tramo (lluvia + semáforos)
+  set({
+    mensajes,
+    lluviaMMh,
+    alertaSAB,
+    reportes,
+    personasExpuestas,
+    incidentes: [...s.incidentes, incidenteSemaforos]
+  });
+
+  // 3) A los 5 s → Inundación
+  setTimeout(()=>{
+    const s2 = get();
+    let msgs2 = s2.mensajes;
+    const incidenteInund = {
+      id: 'inun-' + Date.now(),
+      tipo: 'inundacion',
+      titulo: 'Inundación por encharcamiento en vía principal',
+      coord: [-74.106, 4.678],
+      severidad: 'alta',
+      detalle: 'Anegamiento por alcantarillado insuficiente. Afectación a tráfico y viviendas.'
+    };
+    msgs2 = [...msgs2,
+      { id: (crypto.randomUUID?.()||String(Date.now())),
+        t: new Date().toLocaleTimeString(),
+        txt: 'SAB: encharcamiento severo → Inundación. Se recomienda activar PMU y EDRE.',
+        tipo: 'alerta' }
+    ];
+
+    set({
+      mensajes: msgs2,
+      incidentes: [...s2.incidentes, incidenteInund],
+      reportes: s2.reportes + 12,
+      personasExpuestas: s2.personasExpuestas + 300,
+      alertaSAB: 'Naranja'
+    });
+  }, 5000);
+},
   finalizarEjercicio(){
     const s = get()
     const finTs = Date.now()
