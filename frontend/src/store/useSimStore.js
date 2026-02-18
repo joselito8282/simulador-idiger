@@ -10,6 +10,7 @@ const initial = {
   nombre: '',
   time: 0,
   lluviaMMh: 28,
+  incidentes: [],   // puntos dinámicos que pintaremos en el mapa
   acumuladoMM: 8,
   reportes: 0,
   alertaSAB: 'Verde',
