@@ -1,4 +1,3 @@
-
 import { useSimStore } from '../store/useSimStore'
 import { useState } from 'react'
 
@@ -10,15 +9,26 @@ const Btn = ({children, onClick}) => (
 )
 
 export default function PanelDecisiones(){
-  const { activarEDRE, convocarPMU, emitirAlerta, tick, setNombre, finalizarEjercicio, descargarPdfAAR } = useSimStore()
-  const [n, setN] = useState('')
+  // ✅ Todas las acciones del store se toman dentro del componente
+  const {
+    activarEDRE,
+    convocarPMU,
+    emitirAlerta,
+    tick,
+    setNombre,
+    finalizarEjercicio,
+    descargarPdfAAR,
+    iniciarEscenarioLluviaSemaforosInundacion   // ⬅️ aquí va
+  } = useSimStore()
 
+  const [n, setN] = useState('')
   const onGuardar = ()=> setNombre(n.trim())
 
   return (
     <div className="bg-slate-800 rounded-lg p-3 space-y-2">
       <h2 className="text-lg font-semibold mb-2">Panel de Decisiones</h2>
 
+      {/* Nombre del participante */}
       <div className="mb-2">
         <label className="block text-sm mb-1 opacity-80">Nombre del participante</label>
         <div className="flex gap-2">
@@ -30,14 +40,24 @@ export default function PanelDecisiones(){
         </div>
       </div>
 
+      {/* Acciones IDIGER */}
       <Btn onClick={()=> activarEDRE(1)}>Activar EDRE</Btn>
       <Btn onClick={()=> convocarPMU()}>Convocar PMU</Btn>
       <Btn onClick={()=> emitirAlerta('Amarillo')}>Emitir Alerta SAB Amarillo</Btn>
       <Btn onClick={()=> emitirAlerta('Naranja')}>Emitir Alerta SAB Naranja</Btn>
       <Btn onClick={()=> emitirAlerta('Rojo')}>Emitir Alerta SAB Rojo</Btn>
 
+      {/* Utilidades */}
       <Btn onClick={()=> tick()}>Forzar tick (debug)</Btn>
 
+      {/* 🔵 Escenario encadenado */}
+      <button
+        onClick={iniciarEscenarioLluviaSemaforosInundacion}
+        className="w-full bg-cyan-700 hover:bg-cyan-600 text-left px-4 py-3 rounded-lg border border-cyan-800 text-white">
+        Iniciar escenario: lluvia → semáforos → inundación
+      </button>
+
+      {/* AAR */}
       <button onClick={finalizarEjercicio}
         className="w-full bg-emerald-600 hover:bg-emerald-500 text-left px-4 py-3 rounded-lg border border-emerald-700 text-white">
         Finalizar ejercicio (ver AAR)
