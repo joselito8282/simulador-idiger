@@ -13,6 +13,7 @@ export default function Mapa() {
   useEffect(() => {
     if (mapRef.current) return
 
+    // Estilo OSM raster (sin llaves)
     const style = {
       version: 8,
       sources: {
@@ -35,7 +36,7 @@ export default function Mapa() {
     mapRef.current = map
 
     map.on('load', () => {
-      // Puntos críticos (demo)
+      // === Puntos críticos (demo) ===
       map.addSource('criticos', { type: 'geojson', data: puntos })
 
       map.addLayer({
@@ -46,10 +47,10 @@ export default function Mapa() {
           'circle-radius': 7,
           'circle-color': [
             'match', ['get', 'sev'],
-            'alta', '#ef4444',      // rojo
-            'media', '#f59e0b',     // naranja
-            'baja', '#22c55e',      // verde
-            '#3b82f6'               // default (azul)
+            'alta',   '#ef4444',  // rojo
+            'media',  '#f59e0b',  // naranja
+            'baja',   '#22c55e',  // verde
+            /* else */ '#3b82f6'
           ],
           'circle-stroke-color': '#0f172a',
           'circle-stroke-width': 1.5
@@ -90,7 +91,7 @@ export default function Mapa() {
           .addTo(map)
       })
 
-      // Incidentes (dinámico)
+      // === Incidentes (dinámico) ===
       map.addSource('incidentes', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] }
@@ -104,24 +105,27 @@ export default function Mapa() {
           'circle-radius': 8,
           'circle-color': [
             'match', ['get', 'tipo'],
-            'semaforos', '#f59e0b',   // naranja
+            'semaforos',  '#f59e0b',  // naranja
             'inundacion', '#ef4444',  // rojo
-            '#3b82f6'
+            /* else */   '#3b82f6'
           ],
           'circle-stroke-color':'#0f172a',
           'circle-stroke-width':1.5
         }
       })
 
+      // Popup oscuro para incidentes con color en el título por severidad
       map.on('click','incidentes-circles',(e)=>{
         const f = e.features?.[0]; if(!f) return;
         const { titulo, detalle, tipo, severidad } = f.properties
         const [lng, lat] = f.geometry.coordinates
+        const sevColor = { alta:'#ef4444', media:'#f59e0b', baja:'#22c55e' }
+
         new maplibregl.Popup({ className:'popup-dark', maxWidth:'280px' })
           .setLngLat([lng,lat])
           .setHTML(`
             <div class="popup-dark-body">
-              <div class="title">${titulo}</div>
+              <div class="title" style="color:${sevColor[severidad]||'#e2e8f0'}">${titulo}</div>
               <div><b>Tipo:</b> ${tipo} · <b>Sev:</b> ${severidad}</div>
               <div style="margin-top:4px">${detalle}</div>
             </div>
@@ -133,24 +137,29 @@ export default function Mapa() {
     return () => map.remove()
   }, [])
 
-  // 2) Sincronizar la fuente 'incidentes' cuando cambie el store
+  // 2) Sincronizar 'incidentes' y auto-zoom
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
     const src = map.getSource('incidentes')
     if (!src) return
 
-    const fc = {
-      type: 'FeatureCollection',
-      features: incidentes.map(i => ({
-        type: 'Feature',
-        properties: {
-          tipo: i.tipo, titulo: i.titulo, detalle: i.detalle, severidad: i.severidad
-        },
-        geometry: { type: 'Point', coordinates: i.coord }
-      }))
+    const features = incidentes.map(i => ({
+      type: 'Feature',
+      properties: {
+        tipo: i.tipo, titulo: i.titulo, detalle: i.detalle, severidad: i.severidad
+      },
+      geometry: { type: 'Point', coordinates: i.coord }
+    }))
+
+    src.setData({ type: 'FeatureCollection', features })
+
+    // Auto-encuadre si hay incidentes
+    if (features.length) {
+      const bounds = new maplibregl.LngLatBounds()
+      features.forEach(f => bounds.extend(f.geometry.coordinates))
+      map.fitBounds(bounds, { padding: 40, duration: 600 })
     }
-    src.setData(fc)
   }, [incidentes])
 
   return (
